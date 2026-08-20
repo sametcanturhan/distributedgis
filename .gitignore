@@ -1,0 +1,21 @@
+# Large OpenStreetMap extracts are downloaded separately.
+osm-data/*.osm.pbf
+osm-data/*.pbf
+
+# Local database, environment and editor files.
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Runtime logs and temporary files.
+*.log
+tmp/
+temp/

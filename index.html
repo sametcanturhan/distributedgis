@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Berlin Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="dashboard-shell">
+    <aside class="left-panel">
+      <header class="brand-card">
+        <button class="icon-button" aria-label="Open menu">M</button>
+        <div class="brand-mark">R</div>
+        <div>
+          <h1>Road Risk GIS</h1>
+          <p>Berlin</p>
+        </div>
+      </header>
+
+      <section class="panel-card hazard-card">
+        <div class="section-title-row">
+          <h2>Hazard Reports</h2>
+        </div>
+        <p class="concept-label">User Reports: crowd-sourced road hazard observations.</p>
+        <div class="filter-pills" aria-label="Hazard filters">
+          <button class="filter-pill active" data-filter="all">All</button>
+          <button class="filter-pill" data-filter="pothole">Pothole</button>
+          <button class="filter-pill" data-filter="accident">Accident</button>
+          <button class="filter-pill" data-filter="construction">Construction</button>
+          <button class="filter-pill" data-filter="weather">Weather-related</button>
+        </div>
+        <div id="report-list" class="report-list"></div>
+      </section>
+
+      <section class="panel-card report-section">
+        <h2>Add New Report</h2>
+        <p class="form-hint" id="form-hint">Click the map to set a location.</p>
+
+        <form id="risk-form" class="risk-form">
+          <div class="form-row">
+            <label for="hazard_type">Type</label>
+            <select id="hazard_type" name="hazard_type" required>
+              <option value="">Select type</option>
+              <option value="pothole">Pothole</option>
+              <option value="accident">Accident</option>
+              <option value="construction">Construction</option>
+              <option value="slippery_road">Slippery Road</option>
+              <option value="visibility_issue">Visibility Issue</option>
+              <option value="flooding">Flooding</option>
+              <option value="ice_snow">Ice/Snow</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="severity">Severity</label>
+            <select id="severity" name="severity" required>
+              <option value="">Select severity</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="critical">Critical</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="3" placeholder="Describe the hazard..."></textarea>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row">
+              <label for="lighting_condition">Lighting</label>
+              <select id="lighting_condition" name="lighting_condition">
+                <option value="">Select</option>
+                <option value="daylight">Daylight</option>
+                <option value="dusk_dawn">Dusk / dawn</option>
+                <option value="street_lights">Street lights</option>
+                <option value="poorly_lit">Poorly lit</option>
+                <option value="no_lighting">No lighting</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="road_surface_condition">Surface</label>
+              <select id="road_surface_condition" name="road_surface_condition">
+                <option value="">Select</option>
+                <option value="dry">Dry</option>
+                <option value="wet">Wet</option>
+                <option value="icy">Icy</option>
+                <option value="snow_covered">Snow covered</option>
+                <option value="damaged">Damaged</option>
+                <option value="gravel">Gravel</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label for="weather_condition">Weather</label>
+            <select id="weather_condition" name="weather_condition">
+              <option value="">Select weather</option>
+              <option value="clear">Clear</option>
+              <option value="rain">Rain</option>
+              <option value="snow">Snow</option>
+              <option value="fog">Fog</option>
+              <option value="wind">Wind</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="coordinate-row">
+            <input type="number" id="latitude" name="latitude" step="any" readonly required>
+            <input type="number" id="longitude" name="longitude" step="any" readonly required>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="clear-form" class="btn btn-secondary">Clear</button>
+            <button type="submit" class="btn btn-primary" disabled>Submit Report</button>
+          </div>
+        </form>
+
+        <p id="form-status" class="form-status" hidden></p>
+      </section>
+    </aside>
+
+    <main class="map-column">
+      <section class="stats-grid" aria-label="Road risk summary">
+        <article class="stat-card blue">
+          <span class="stat-icon">R</span>
+          <div>
+            <p>Total Reports</p>
+            <strong id="total-reports">0</strong>
+            <small id="reports-today">+0 today</small>
+          </div>
+        </article>
+        <article class="stat-card orange">
+          <span class="stat-icon">H</span>
+          <div>
+            <p>Active Hazards</p>
+            <strong id="active-hazards">0</strong>
+            <small>live reports</small>
+          </div>
+        </article>
+        <article class="stat-card red">
+          <span class="stat-icon">K</span>
+          <div>
+            <p>High Severity Reports</p>
+            <strong id="high-risk-roads">0</strong>
+            <small>high / critical reports</small>
+          </div>
+        </article>
+        <article class="stat-card purple">
+          <span class="stat-icon">W</span>
+          <div>
+            <p>Weather Alerts</p>
+            <strong id="weather-alerts">3</strong>
+            <small>View details</small>
+          </div>
+        </article>
+      </section>
+
+      <section class="map-card">
+        <div class="search-box">
+          <input
+            id="location-search"
+            type="search"
+            placeholder="Search location..."
+            aria-label="Search location"
+            autocomplete="off"
+          >
+          <button
+            id="nearest-report-tool"
+            class="search-tool-button"
+            type="button"
+            title="Find nearest report"
+            aria-label="Find nearest report"
+          >⌖</button>
+          <div id="location-results" class="location-results" hidden></div>
+        </div>
+        <div id="map"></div>
+        <div class="risk-legend">
+          <div class="legend-labels">
+            <span>Risk Score</span>
+            <span>Score</span>
+          </div>
+          <div class="legend-bar">
+            <i class="low"></i>
+            <i class="moderate"></i>
+            <i class="high"></i>
+            <i class="very-high"></i>
+            <i class="critical"></i>
+          </div>
+          <div class="legend-scale">
+            <span>0-20<br>Low</span>
+            <span>21-40<br>Moderate</span>
+            <span>41-60<br>High</span>
+            <span>61-80<br>Very High</span>
+            <span>81-100<br>Critical</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="right-panel">
+      <section class="panel-card weather-card">
+        <h2>Weather &amp; Risk</h2>
+        <p class="concept-label">Weather Impact: current weather modifies road risk levels.</p>
+        <p>Berlin, Germany</p>
+        <div class="weather-main">
+          <div class="weather-symbol" id="weather-symbol">—</div>
+          <div>
+            <strong id="weather-temperature">—°C</strong>
+            <span id="weather-condition">Loading weather...</span>
+          </div>
+        </div>
+        <dl class="weather-list">
+          <div><dt>Precipitation</dt><dd id="weather-precipitation">— mm</dd></div>
+          <div><dt>Rain</dt><dd id="weather-rain">— mm</dd></div>
+          <div><dt>Snowfall</dt><dd id="weather-snowfall">— cm</dd></div>
+          <div><dt>Wind</dt><dd id="weather-wind">— km/h</dd></div>
+          <div><dt>Weather Code</dt><dd id="weather-code">—</dd></div>
+          <div><dt>Road Surface Risk</dt><dd class="danger" id="weather-risk">—</dd></div>
+        </dl>
+        <div class="weather-impact">
+          <span>Weather Impact</span>
+          <p id="weather-impact-text">Current weather is loading...</p>
+        </div>
+      </section>
+
+      <section class="panel-card layers-card">
+        <h2>Layers</h2>
+        <label><input id="layer-reports" type="checkbox" checked> User Reports</label>
+        <label><input id="layer-risk-roads" type="checkbox" checked> Risk Roads</label>
+        <label><input id="layer-heatmap" type="checkbox"> Heatmap</label>
+        <label><input id="layer-weather-grid" type="checkbox"> Weather Grid</label>
+      </section>
+
+      <section class="panel-card tools-card export-card">
+        <h2>Export Data</h2>
+        <p class="concept-label">Export: download analysis results as GeoJSON/JSON.</p>
+        <button id="export-reports" type="button">Export All GIS Data as GeoJSON</button>
+        <button id="export-risk-summary" type="button">Export Risk Summary as JSON</button>
+        <button id="export-visible-data" type="button">Export Visible Map Data as GeoJSON</button>
+      </section>
+    </aside>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="js/app.js?v=13"></script>
+</body>
+</html>
