@@ -4,14 +4,14 @@ A distributed Web GIS application for collecting road-hazard reports in Berlin a
 
 ## Quick Start — Windows (recommended)
 
-The project includes a one-click launcher. On a new Windows computer, the user does **not** need to manually download the Berlin PBF, run the road importer, or enter the normal Docker commands.
+The final project is available directly from the **`main`** branch. The repository includes a one-click launcher, so on a Windows computer the user does **not** need to manually download the Berlin PBF, run the road importer, or enter the normal Docker commands.
 
 ### Requirements
 
 1. Install **Docker Desktop**.
 2. Start Docker Desktop and wait until Docker is ready.
 3. Make sure the computer has an internet connection during the first startup.
-4. Download this repository from the **`berlin-final`** branch and extract the ZIP.
+4. Download this repository from the **`main`** branch and extract the ZIP.
 
 ### Start the project
 
@@ -24,15 +24,16 @@ START_PROJECT.bat
 The launcher automatically:
 
 1. checks that Docker Desktop is running;
-2. creates the `osm-data` directory if necessary;
-3. checks for `osm-data/berlin-latest.osm.pbf`;
-4. downloads the Berlin OpenStreetMap PBF from Geofabrik if it is missing;
-5. starts PostgreSQL/PostGIS;
-6. waits until the database is ready;
-7. checks whether the `road_network` table already exists;
-8. runs the osm2pgsql road importer only when the Berlin road network has not yet been imported;
-9. builds and starts the FastAPI backend and Nginx/Leaflet frontend;
-10. opens the application automatically in the default browser.
+2. removes stale project containers that could cause container-name conflicts, while keeping the persistent PostgreSQL volume;
+3. creates the `osm-data` directory if necessary;
+4. checks for `osm-data/berlin-latest.osm.pbf`;
+5. downloads the Berlin OpenStreetMap PBF from Geofabrik if it is missing, using a temporary file so an interrupted download is not mistaken for a valid PBF;
+6. starts PostgreSQL/PostGIS;
+7. waits until PostgreSQL accepts TCP connections;
+8. checks whether the `road_network` table already exists;
+9. runs the osm2pgsql road importer only when required, retrying automatically if PostgreSQL is still finishing startup;
+10. builds and starts the FastAPI backend and Nginx/Leaflet frontend;
+11. opens the application automatically in the default browser.
 
 The **first startup can take several minutes** because the Berlin road data must be downloaded and imported. Later startups are much faster because the existing PBF and PostGIS road network are reused.
 
@@ -187,6 +188,11 @@ The local database, API, reports and imported road network run locally. Internet
 
 If `START_PROJECT.bat` reports that Docker is not running, open Docker Desktop, wait until it is ready, and run the launcher again.
 
+The launcher now automatically handles two common setup problems:
+
+- an old `gis_project_db`, `gis_project_backend` or `gis_project_frontend` container already using the same container name;
+- PostgreSQL reporting healthy before it is fully ready to accept the road-importer TCP connection.
+
 If the frontend does not open, check `http://localhost:38148/docs`. For backend logs use:
 
 ```powershell
@@ -201,11 +207,11 @@ docker compose logs db
 
 If a report cannot find a road, click directly on or close to a supported road. Road snapping currently uses a 12 metre maximum distance for map clicks.
 
-If the automatic PBF download fails, check the internet connection, remove any incomplete `osm-data/berlin-latest.osm.pbf` file, and run `START_PROJECT.bat` again.
+If the automatic PBF download fails, check the internet connection and run `START_PROJECT.bat` again. The launcher downloads to a temporary file and only renames it after a successful download.
 
 ## Persistence
 
-Reports and imported Berlin roads are stored in the named Docker volume `postgres_data`. `STOP_PROJECT.bat` uses `docker compose stop`, so this data is preserved between runs.
+Reports and imported Berlin roads are stored in the named Docker volume `postgres_data`. Removing or recreating the application containers does not delete this volume. `STOP_PROJECT.bat` uses `docker compose stop`, so data is preserved between runs.
 
 ## Project scope and limitations
 
