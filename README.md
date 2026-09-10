@@ -1,116 +1,121 @@
-# Weather-Aware Road Risk GIS
+# Weather-Aware Road Risk GIS for Berlin
 
-A distributed Web GIS application for collecting road-hazard reports and converting them into explainable risk-road segments. The project combines a Leaflet web client, a FastAPI middleware, PostgreSQL/PostGIS spatial analysis, OpenStreetMap road data, Open-Meteo weather information, and Docker Compose.
+A distributed Web GIS application for collecting road-hazard reports in Berlin and converting them into explainable risk-road segments. The project combines a Leaflet frontend, FastAPI backend, PostgreSQL/PostGIS spatial analysis, local OpenStreetMap road data, Open-Meteo weather data, Nominatim location search, Nginx, and Docker Compose.
 
-## What the application does
+## Main features
 
-- Displays an interactive map with multiple basemaps.
-- Creates, edits, lists, locates, and deletes persistent road-hazard reports.
-- Accepts reports only near an eligible road and snaps them to the road geometry.
-- Produces severity-dependent impact areas of 50, 100, 150, or 200 metres.
-- Intersects those impact areas with the local OSM road network.
-- Draws only the affected road portions as coloured LineString features.
-- Calculates an explainable risk score from severity and weather conditions.
-- Shows report, risk-road, heatmap, and weather layers.
-- Searches locations through a backend Nominatim proxy.
-- Exports both Point reports and LineString analysis results as GeoJSON.
+- Interactive Berlin map using OpenStreetMap and Esri satellite basemaps
+- Persistent create, edit, list, locate, and delete operations for road-hazard reports
+- Report locations snapped to eligible OSM roads
+- Severity-dependent impact radii of 50, 100, 150, and 200 metres
+- PostGIS road-segment analysis and risk scoring
+- Weather-aware risk interpretation using Open-Meteo
+- Report, risk-road, weather-grid, and heatmap layers
+- Location search through a backend Nominatim proxy
+- GeoJSON and JSON export
 
 ## Architecture
 
 ```text
-Browser / Leaflet Web Client
-            |
-            | REST + JSON / GeoJSON
-            v
-      FastAPI / Python
-       |           |
-       |           +---- Open-Meteo weather API
-       |           +---- Nominatim location search
+Browser / Leaflet
+       |
+       | REST + JSON / GeoJSON
        v
+FastAPI / Python
+   |          |
+   |          +---- Open-Meteo
+   |          +---- Nominatim
+   v
 PostgreSQL + PostGIS
-  - road_reports (Point)
-  - road_network (LineString)
-  - spatial queries and risk analysis
+   - road_reports (Point)
+   - road_network (LineString)
+   - spatial analysis
 ```
 
-Docker Compose runs the database, backend, and frontend in separate containers. A tool-profile container imports local OpenStreetMap PBF extracts into PostGIS.
+Docker Compose runs the database, backend, and frontend in separate containers. A separate tool-profile container imports the Berlin OpenStreetMap PBF extract into PostGIS.
 
 ## Technology stack
 
 - **Frontend:** HTML, CSS, JavaScript, Leaflet, Leaflet.heat
 - **Backend:** Python 3.12, FastAPI, Pydantic, SQLAlchemy, GeoAlchemy2
-- **Spatial database:** PostgreSQL 16, PostGIS 3.4
-- **Road data:** OpenStreetMap PBF, imported with osm2pgsql flex
+- **Database:** PostgreSQL 16 + PostGIS 3.4
+- **Road data:** OpenStreetMap PBF imported with osm2pgsql flex
 - **External services:** Open-Meteo and Nominatim
 - **Web server:** Nginx
 - **Deployment:** Docker Compose
 
 ## Requirements
 
-Install the following on the computer that will run the project:
+Install:
 
 - Docker Desktop
-- Git, or a web browser if the repository is downloaded as a ZIP
-- An internet connection for the first Docker image download, external basemaps, Leaflet CDN, weather, and location search
+- Git, or use GitHub's Download ZIP option
+- Internet access for Docker image downloads, map tiles, Leaflet CDN assets, weather, and location search
 
-On Windows, Docker Desktop normally uses WSL 2. Confirm that Docker Desktop is running before entering the commands below.
+On Windows, start Docker Desktop before running the commands below.
 
-## Clone the repository
+## Get the project
+
+Clone the repository and switch to the final Berlin branch:
 
 ```powershell
 git clone https://github.com/sametcanturhan/distributedgis.git
 cd distributedgis
+git checkout berlin-final
 ```
 
-Because the repository is private, GitHub will require an account that has been granted access by the owner.
+If the repository is private, the GitHub account must have access.
 
-Alternatively, an authorised user can download **Code > Download ZIP**, extract it, and open PowerShell in the extracted folder.
+Alternatively, open the `berlin-final` branch on GitHub, choose **Code > Download ZIP**, extract the ZIP, and open PowerShell in the extracted project folder.
 
-## Download the road data
+## Download the Berlin road data
 
-Large `.osm.pbf` files are intentionally excluded from GitHub through `.gitignore`. They must be placed in `osm-data/` before the road importer is run.
+The OpenStreetMap `.pbf` file is intentionally excluded from GitHub because it is a large binary data file.
 
-Expected files:
-
-```text
-osm-data/
-  berlin-latest.osm.pbf
-  Istanbul.osm.pbf
-```
-
-Berlin can be downloaded from Geofabrik:
+Download the Berlin extract from Geofabrik:
 
 ```text
 https://download.geofabrik.de/europe/germany/berlin-latest.osm.pbf
 ```
 
-The Istanbul extract used by this project can be obtained from BBBike or replaced with another compatible Istanbul OSM PBF extract. Keep the filename `Istanbul.osm.pbf`, unless the importer command in `docker-compose.yml` is updated as well.
+Place it exactly here:
 
-> The current Docker importer expects both filenames. Missing PBF files will cause the import step to fail. The large files remain local and are never committed to the repository.
+```text
+osm-data/
+  berlin-latest.osm.pbf
+```
+
+The final Berlin configuration requires only this file. Istanbul data is not used.
 
 ## First-time setup
 
-### 1. Start the main services
+### 1. Start database, backend, and frontend
+
+From the project folder run:
 
 ```powershell
 docker compose up -d --build db backend frontend
 ```
 
-This starts:
+The host ports are intentionally non-standard to reduce the chance of conflicts with other local services:
 
-- `gis_project_db` - PostgreSQL/PostGIS on port `5432`
-- `gis_project_backend` - FastAPI on port `8000`
-- `gis_project_frontend` - Nginx/Leaflet on port `8080`
+| Service | Address / Host port | Container port |
+| --- | --- | --- |
+| Frontend | `http://localhost:38147` | `8080` |
+| FastAPI | `http://localhost:38148` | `8000` |
+| PostgreSQL/PostGIS | `localhost:38149` | `5432` |
 
-### 2. Import the road network
+Docker services still communicate internally using their normal container ports, for example the backend connects to PostgreSQL at `db:5432`.
 
-Run this once after the PBF files have been placed in `osm-data/`:
+### 2. Import the Berlin road network
+
+Run once after `berlin-latest.osm.pbf` has been placed in `osm-data/`:
 
 ```powershell
 docker compose --profile tools run --rm road-importer
 ```
 
-The import may take several minutes. Do not interrupt it. The road data is written to the persistent PostgreSQL Docker volume.
+The import can take several minutes. The imported road network is stored in the persistent PostgreSQL Docker volume.
 
 ### 3. Verify the containers
 
@@ -118,73 +123,86 @@ The import may take several minutes. Do not interrupt it. The road data is writt
 docker compose ps
 ```
 
-The database should report a healthy state, and the backend and frontend should be running.
+Expected host port mappings include:
+
+```text
+38147 -> 8080   frontend
+38148 -> 8000   backend
+38149 -> 5432   database
+```
+
+The database should show a healthy state.
 
 ### 4. Open the application
 
-```text
-http://localhost:8080
-```
-
-The FastAPI interactive documentation is available at:
+Frontend:
 
 ```text
-http://localhost:8000/docs
+http://localhost:38147
 ```
 
-## Normal startup after the first installation
+FastAPI documentation:
 
-The road import does not need to be repeated while the PostgreSQL Docker volume exists.
+```text
+http://localhost:38148/docs
+```
+
+## Normal startup after first installation
+
+As long as the PostgreSQL Docker volume still exists, the road import does not need to be repeated.
 
 ```powershell
 docker compose up -d
 ```
 
-Open `http://localhost:8080` in a browser.
+Open:
 
-To stop the containers without deleting the database:
+```text
+http://localhost:38147
+```
+
+To stop without deleting data:
 
 ```powershell
 docker compose stop
 ```
 
-To start the stopped containers again:
+To start again:
 
 ```powershell
 docker compose start
 ```
 
-## Important data-persistence warning
+## Important persistence warning
 
-The reports and imported road network are stored in the Docker volume `postgres_data`. They are not stored in GitHub.
+Reports and imported roads are stored in the named Docker volume `postgres_data`.
+
+This command removes containers but normally keeps the named volume:
 
 ```powershell
 docker compose down
 ```
 
-stops and removes the containers but normally preserves the named volume.
-
-Do **not** use the following command unless the database should be permanently deleted:
+Do **not** use the following command unless you intentionally want to erase the database, reports, and imported road network:
 
 ```powershell
 docker compose down -v
 ```
 
-The `-v` option removes the database volume, including reports and imported roads.
-
 ## Application workflow
 
-1. Search for a location or navigate the map.
-2. Select a point on an eligible road.
-3. Enter the hazard type, severity, description, lighting, and road-surface conditions.
-4. Submit the report.
-5. The backend finds an eligible road within 12 metres and snaps the point to it.
-6. PostGIS creates a severity-dependent buffer and intersects it with the road network.
-7. The affected road portions are displayed and styled by risk score.
-8. Use the layer controls to show reports, risk roads, heatmap, or weather data.
-9. Export the complete GIS result as GeoJSON when required.
+1. Open the map or search for a Berlin location.
+2. Click on or very near an eligible road.
+3. The frontend requests a road snap from the backend.
+4. Enter hazard type, severity, description, lighting, road-surface, and weather information.
+5. Submit the report.
+6. The report is stored in PostGIS as a Point snapped to the road network.
+7. PostGIS determines affected road portions and calculates road-risk information.
+8. The map displays the resulting report and risk-road features.
+9. Layer controls can show reports, risk roads, weather grid, and heatmap data.
+10. Results can be exported as GeoJSON or JSON.
 
-## Spatial analysis
+## Risk model
 
 | Severity | Impact radius | Zone | Base score |
 | --- | ---: | ---: | ---: |
@@ -193,105 +211,111 @@ The `-v` option removes the database volume, including reports and imported road
 | High | 150 m | 3 | 70 |
 | Critical | 200 m | 4 | 90 |
 
-Risk is calculated with an explainable rule-based model:
+The rule-based score is:
 
 ```text
 risk score = min(100, round(severity base score × weather multiplier))
 ```
 
-Weather multipliers currently include snow `1.50`, temperature below zero `1.40`, rain `1.25`, wind `1.15`, and otherwise `1.00`.
+Current weather multipliers include:
 
-The main PostGIS functions are:
+- snow: `1.50`
+- temperature below 0 °C: `1.40`
+- rain: `1.25`
+- strong wind / windy condition: `1.15`
+- otherwise: `1.00`
 
-- `ST_DWithin` - proximity and road-candidate filtering
-- `ST_ClosestPoint` - snapping the report to a road
-- `ST_Buffer` - severity-dependent impact area
-- `ST_Intersection` - clipping affected road portions
-- `ST_Length` - affected length in metres
-- GiST index and bounding-box filtering - query acceleration
+## Main PostGIS operations
 
-## GeoJSON export
+- `ST_DWithin` for proximity filtering
+- `ST_ClosestPoint` for snapping reports to roads
+- `ST_Buffer` for severity-dependent impact areas
+- `ST_Intersection` for affected road sections
+- `ST_Length` for affected road length
+- GiST spatial indexing and bounding-box filtering for query acceleration
 
-The full export contains:
+## Basemaps
 
-- Point features for the original hazard reports
-- LineString features for the derived risk-road segments
-- report IDs, OSM road information, severity, buffer radius, risk score, distance, affected length, and generation metadata
+The final frontend uses:
 
-The result can be opened in QGIS or another GeoJSON-compatible GIS application.
+- OpenStreetMap Standard
+- Esri World Imagery satellite tiles
 
-## Internet and offline behaviour
+CARTO layers were removed so the project does not depend on a CARTO API key.
 
-The database, API, stored reports, and imported road network run locally. The current frontend still uses internet-hosted services for:
+## External internet dependencies
 
-- Leaflet and Leaflet.heat CDN files
-- OpenStreetMap, CARTO, and Esri basemap tiles
+The local database, API, reports, and imported Berlin road network run locally. Internet access is still required for:
+
+- Leaflet / Leaflet.heat CDN assets
+- OpenStreetMap and Esri basemap tiles
 - Open-Meteo weather data
 - Nominatim location search
 
-For a classroom presentation, prepare a reliable internet connection or phone hotspot. A future offline-ready version should vendor the Leaflet assets and provide a local or cached basemap.
+For a classroom demonstration, use a reliable internet connection or hotspot.
 
 ## Troubleshooting
 
-### `No road found within 12 meters`
+### Frontend opens but reports cannot be submitted
 
-Choose a point directly on a supported road. The application intentionally rejects reports placed on buildings, shopping centres, or unrelated open areas.
+Confirm that the frontend is opened at:
 
-### `Local road network is not loaded`
+```text
+http://localhost:38147
+```
 
-Confirm that both required PBF files exist, then run:
+and that the backend is available at:
+
+```text
+http://localhost:38148/docs
+```
+
+The FastAPI CORS configuration includes the final frontend port `38147`.
+
+### No road is found
+
+Click directly on or close to a supported road. Road snapping currently uses a 12 metre maximum distance for map clicks.
+
+### Local road network is not loaded
+
+Confirm this file exists:
+
+```text
+osm-data/berlin-latest.osm.pbf
+```
+
+Then run:
 
 ```powershell
 docker compose --profile tools run --rm road-importer
 ```
 
-### The map opens but basemap tiles are blank
-
-Check the internet connection. Basemap tiles are currently loaded from external providers.
-
-### Location search or weather does not work
-
-These functions require access to Nominatim and Open-Meteo. The local report database may still work while those services are unavailable.
-
-### Check backend logs
+### Backend problems
 
 ```powershell
 docker compose logs backend
 ```
 
-### Check database logs
+### Database problems
 
 ```powershell
 docker compose logs db
 ```
 
-### Rebuild after backend changes
+### Rebuild services
 
 ```powershell
-docker compose up -d --build backend
+docker compose up -d --build db backend frontend
 ```
 
-## Repository privacy and collaboration
+## Project scope and limitations
 
-This repository is private. Only the owner and explicitly invited collaborators can access it. The owner can invite or remove collaborators from **Settings > Collaborators and teams** on GitHub.
+- The current project is configured for Berlin only.
+- Road analysis depends on the locally imported Berlin OpenStreetMap extract.
+- The risk model is deterministic and explainable, but is not calibrated against official accident statistics.
+- Authentication and moderation are not implemented.
+- Weather and location search depend on external services.
 
-Do not commit:
+## Data attribution
 
-- `.osm.pbf` extracts
-- database dumps containing private reports
-- `.env` files
-- passwords, tokens, API keys, or credentials
-
-## Project scope and known limitations
-
-- Road analysis works only in regions whose PBF data has been imported.
-- The risk model is deterministic and explainable, but its weights are not yet calibrated with official accident statistics.
-- Authentication, ownership of individual reports, moderation, and abuse prevention are not yet implemented.
-- Weather and geocoding depend on external services.
-- Some UI summary fields should be connected to authoritative API data before being used as scientific evidence.
-
-## Licence and data attribution
-
-Application code licence: not yet specified by the project owner.
-
-OpenStreetMap data is © OpenStreetMap contributors and is available under the Open Database License. Basemap providers retain their own attribution and usage terms.
+OpenStreetMap data is © OpenStreetMap contributors and is available under the Open Database License. External basemap and API providers retain their own attribution and usage terms.
