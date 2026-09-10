@@ -68,7 +68,6 @@ services:
       - /config/roads.lua
       - --create
       - /data/berlin-latest.osm.pbf
-      - /data/Istanbul.osm.pbf
 
 volumes:
   postgres_data:
