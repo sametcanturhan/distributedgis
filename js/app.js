@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "http://localhost:38148";
 const BERLIN_CENTER = [52.52, 13.405];
 const DEFAULT_ZOOM = 12;
 
@@ -293,19 +293,6 @@ function initializeBaseLayers() {
     maxZoom: 19,
   });
 
-  const darkMapLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    maxZoom: 20,
-  });
-
-  const voyagerRoadLayer = L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-    {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 20,
-    }
-  );
-
   const satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
     attribution: "Tiles &copy; Esri",
     maxZoom: 19,
@@ -317,8 +304,6 @@ function initializeBaseLayers() {
 
   const baseLayers = {
     "Light OSM": lightOsmLayer,
-    "Road Network (Voyager)": voyagerRoadLayer,
-    "Dark Map": darkMapLayer,
     Satellite: satelliteLayer,
   };
 
